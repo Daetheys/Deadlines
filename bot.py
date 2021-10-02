@@ -342,9 +342,11 @@ async def on_message(m):
         #Doesn't respond to its own messages
         if m.author == client.user:
             return
+        if m.channel.id != pw.channel_id:
+            return
         #Responds to messages starting with a '$'
         if m.content.startswith('$'):
-            
+
             print('-------------------------------------')
             print('              NEW INPUT              ')
             print('-------------------------------------')
