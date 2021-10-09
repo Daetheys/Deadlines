@@ -16,8 +16,8 @@ def log(f,*txt):
     f.flush()
 
 #Ugly but fast to write
-def print(*args):
-    return log(f,*args)
+#def print(*args):
+#    return log(f,*args)
 
 client = discord.Client()
 
@@ -51,7 +51,7 @@ def save_courses(courses):
 def add_course(course,emote):
     #Add new course
     if len(emote)>2:
-        error('An emote or a short message (max 2 chars) is supposed to be given : got {}'.format(emote))
+        error('An emote or a short text (max 2 chars) is supposed to be given : got {}'.format(emote))
         return 0
     courses_dict = load_courses()
     try:
@@ -137,7 +137,7 @@ def add_deadline(d,course_name,obj): #Add new deadline
             error('Unknown date {}.'.format(d))
             return 0 #Deadline not added
     else:
-        error('First parameter is supposed to be a date ($add {DATE} {COURSE} {OBJECT}). Got {} but expect a DD/MM or DD/MM/YYYY format.'.format(d))
+        error('First parameter is supposed to be a date ($add DATE COURSE OBJECT). Got {} but expect a DD/MM or DD/MM/YYYY format.'.format(d))
     #Checks the course
     courses_dict = load_courses()
     try:
@@ -214,7 +214,7 @@ def select_deadlines(dl):
     for i in future:
         print(i)
     #passed.reverse()
-    return passed[-5:]+future[:15]
+    return passed[-3:]+future[:17]
 
 
 def format_deadline(dl,courses_dict):
@@ -247,13 +247,40 @@ def get_deadlines_str(all=False,filtercourse=None):
     ls = []
     for selected_deadlines in lselected_deadlines:
         s = '```diff\n'
-        s += 'Date '+' '*3+' '+' '+'       Course       '+' '*3+"            Object            "+" "*3+"   Id  "+"\n"
+        s += '     Date '+' '*3+' '+' '+'       Course       '+' '*3+"            Object            "+" "*3+"   Id  "+"\n"
+        today = datetime.datetime.today()
+        today.replace(microsecond=0,second=0,minute=0,hour=0)
+        today -= datetime.timedelta(days=1)
         for dl in selected_deadlines:
             #Strikethrough if deadline is over
-            s += ("-" if dl[0] < datetime.datetime.today() else " ") + format_deadline(dl,courses_dict) +'\n'
+            if dl[0] < today:
+                pre = '-  '+'❌'
+            elif dl[0] < today + datetime.timedelta(days=3):
+                pre = '   '+'❕ '
+            elif dl[0] < today + datetime.timedelta(days=14):
+                pre = '+  '+'📗'
+            else:
+                pre = '---'+'🏴'
+            s += pre + format_deadline(dl,courses_dict) +'\n'
         s += '```'
         ls.append(s)
     return ls
+
+def get_patchnote_text():
+    s = "```\
+----------------------------------------------\n\
+                PATCHNOTE 1.1\n\
+----------------------------------------------\n\
+    - Added emotes and more colors depending on how much time do we have left until the deadline\n\
+        ❌ - PASSED\n\
+        ❕  - UPCOMING (< 3 days)\n\
+        📗 - SOON (<= 14 days)\n\
+        🏴 - FAR (> 14 days)\n\
+    - Added PatchNote feature\n\
+    - Added ',' parsing for deadline specifications \n\
+    - Updated few error messages \n\
+```"
+    return s
 
 #-------------------------------------------
 #
@@ -263,7 +290,7 @@ def get_deadlines_str(all=False,filtercourse=None):
 
 def parse(c):
     print("PARSING :",c)
-    p1 = re.findall('^\$([a-zA-Z0-9_]+)((?: -[a-zA-Z0-9_/\-]+ [a-zA-Z0-9_/\-\U00010000-\U0010ffff]*)*)((?: [a-zA-Z0-9_/\-\U00010000-\U0010ffff]+| "[a-zA-Z0-9_/\- \U00010000-\U0010ffff]+")*)$',c)
+    p1 = re.findall('^\$([a-zA-Z0-9_]+)((?: -[a-zA-Z0-9_/\-]+ [a-zA-Z0-9_/\-\U00010000-\U0010ffff]*)*)((?: [a-zA-Z0-9_/\-\U00010000-\U0010ffff]+| "[a-zA-Z0-9_,/\- \U00010000-\U0010ffff]+")*)$',c)
     print("AFTER 1st STEP :",p1)
     if len(p1) != 1:
         return None
@@ -276,7 +303,7 @@ def parse(c):
     print("AFTER SECOND STEP :",c,command,params_str,args_str)
     params = re.findall('-([a-zA-Z0-9_/\-]+) ([a-zA-Z0-9_/\-\U00010000-\U0010ffff]*)',params_str)
 
-    args = re.findall('(?: ([a-zA-Z0-9_/\-\U00010000-\U0010ffff]+|"[a-zA-Z0-9_/ \-\U00010000-\U0010ffff]+"))',args_str)
+    args = re.findall('(?: ([a-zA-Z0-9_/\-\U00010000-\U0010ffff]+|"[a-zA-Z0-9_,/ \-\U00010000-\U0010ffff]+"))',args_str)
 
     for i in range(len(args)):
         if args[i][0] == '"':
@@ -342,7 +369,7 @@ async def on_message(m):
         #Doesn't respond to its own messages
         if m.author == client.user:
             return
-        if m.channel.id != pw.channel_id:
+        if not(m.channel.id in pw.channel_id):
             return
         #Responds to messages starting with a '$'
         if m.content.startswith('$'):
@@ -355,7 +382,7 @@ async def on_message(m):
 
             try: #Custom Errors handling
                 if v is None:
-                    error('Your command doesn\'t respect the format : type $help to see commands\' format')
+                    error('Your command doesn\'t respect the format : type $help to see commands\' format. This error might also be trigered by a special character in the command that makes the regex parsing fail. Try rewriting your command only using letters (no accent), simple emojis, spaces, underscores and dashes.')
                 (command,params,args) = v
                 print('INPUT : ',command,params,args)
 
@@ -434,9 +461,17 @@ async def on_message(m):
 3. [$show]( to show existing deadlines (capped at 20 deadlines : 5 passed - for people who are late - and 15 next)\n\
 > Example : $show \n\
 4. [$showall]( to show all deadlines)\n\
-> Example : $showall \n\
+> Example : $showall \n\n\
+-- <C PatchNote> : \n\
+1. [$patchnote]( to show the last patch notes.) \n\
+> Example : $patchnote \n\
 ```"
                     await m.channel.send(msg)
+                elif command=='patchnote':
+                    d = {}
+                    if setup_params(d,params,'patchnote') and verify_nb_args(args,0,'patchnote'):
+                        s = get_patchnote_text()
+                        await m.channel.send(s)
                 else:
                     error('Unknown command {}. Type $help to get the list of commands'.format(command))
 
@@ -455,4 +490,5 @@ if first_time:
 
 import pw
 client.run(pw.pw)
+
 f.close()
