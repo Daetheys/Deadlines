@@ -199,7 +199,7 @@ def select_deadlines(dl):
     print('sorted deadlines :')
     for i in sdl:
         print(i)
-    now = datetime.datetime.today()
+    now = get_today()
     passed = []
     future = []
     for d in sdl:
@@ -231,6 +231,12 @@ def format_deadline(dl,courses_dict):
     s += emote + ' ' + cname + ' '*3 + obj_txt + ' '*3 + str(idn)
     return s
 
+def get_today():
+    today = datetime.datetime.today()
+    today = today.replace(microsecond=0,second=0,minute=0,hour=0)
+    #today -= datetime.timedelta(days=1)
+    return today
+
 def get_deadlines_str(all=False,filtercourse=None):
     deadlines_dict = load_deadlines()
     print("show deadlines :")
@@ -248,12 +254,11 @@ def get_deadlines_str(all=False,filtercourse=None):
     for selected_deadlines in lselected_deadlines:
         s = '```diff\n'
         s += '     Date '+' '*3+' '+' '+'       Course       '+' '*3+"            Object            "+" "*3+"   Id  "+"\n"
-        today = datetime.datetime.today()
-        today.replace(microsecond=0,second=0,minute=0,hour=0)
-        today -= datetime.timedelta(days=1)
+        today = get_today()
         for dl in selected_deadlines:
             #Strikethrough if deadline is over
             if dl[0] < today:
+                print(dl[0],today)
                 pre = '-  '+'❌'
             elif dl[0] < today + datetime.timedelta(days=3):
                 pre = '   '+'❕ '
