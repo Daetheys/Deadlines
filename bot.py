@@ -6,8 +6,13 @@ import traceback
 import pickle
 import re
 
+online_mode = True
+
 f = open('logs.txt', 'a+')
 def log(*txt):
+    if online_mode:
+        print(*txt)
+        return
     f.write(str(datetime.datetime.now())+" - ")
     if len(txt)== 1:
         f.write(str(txt[0])+'\n')
@@ -111,8 +116,7 @@ def get_idn(deadlines_dict): #Generates a new ID for the deadline
         idn = np.random.randint(0,10**5)
     return idn
 
-def add_deadline(d,course_name,obj): #Add new deadline
-    #Check and completes the date
+def parse_date(d):
     now = datetime.datetime.today()
     if d.count('/') == 1: #Day/month format -> will guess the year
         #Parse the day/month format
@@ -134,6 +138,11 @@ def add_deadline(d,course_name,obj): #Add new deadline
             return 0 #Deadline not added
     else:
         error('First parameter is supposed to be a date ($add DATE COURSE OBJECT). Got {} but expect a DD/MM or DD/MM/YYYY format.'.format(d))
+    return dat
+
+def add_deadline(d,course_name,obj): #Add new deadline
+    #Check and completes the date
+    dat = parse_date(d)
     #Checks the course
     courses_dict = load_courses()
     try:
@@ -170,14 +179,39 @@ def check_already_existing_dl(date,course,deadlines_dict):
     
 def remove_deadline(idn):
     #Removes a deadline from the database and saves
+    try:
+        idn = int(idn)
+    except ValueError:
+        error("Please enter a number for the deadline id.")
     deadlines_dict = load_deadlines()
     try:
-        del deadlines_dict[int(idn)]
+        del deadlines_dict[idn]
         save_deadlines(deadlines_dict)
     except KeyError:
         error('Unknown id {}.'.format(idn))
         return 0
     return 1
+
+def update_deadline(idn,date,obj):
+    #Updates the deadline with given date or obj
+    try:
+        idn = int(idn)
+    except ValueError:
+        error("Please enter a number for the deadline id.")
+    if date is None and obj is None:
+        error("Please either specify a new date or a new obj for the deadline")
+    deadlines_dict = load_deadlines()
+    try:
+        deadlines_dict[idn]
+    except KeyError:
+        error("Unknown deadline id")
+    if not(date is None):
+        dat = parse_date(date)
+        deadlines_dict[idn] = (dat,)+deadlines_dict[idn][1:]
+    if not(obj is None):
+        deadlines_dict[idn] = deadlines_dict[idn][:-1]+(obj,)
+    save_deadlines(deadlines_dict)
+
 
 def deadlines_for_course(course,deadlines_dict=None):
     #Extracts all deadlines associated to a course
@@ -275,19 +309,14 @@ def get_deadlines_str(all=False,filtercourse=None):
     return ls
 
 def get_patchnote_text():
-    s = "```\
-----------------------------------------------\n\
-                PATCHNOTE 1.1\n\
-----------------------------------------------\n\
-    - Added emotes and more colors depending on how much time do we have left until the deadline\n\
-        ❌ - PASSED\n\
-        ❕  - UPCOMING (< 3 days)\n\
-        📗 - SOON (<= 14 days)\n\
-        🏴 - FAR (> 14 days)\n\
-    - Added PatchNote feature\n\
-    - Added ',' parsing for deadline specifications \n\
-    - Updated few error messages \n\
-```"
+    path = "patchnotes/"
+    lfiles = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path,f))]
+    lfiles.sort()
+    log("list files",lfiles)
+    fname = os.path.join(path,lfiles[-1])
+    log('fname',fname)
+    fpatch = open(fname,'r',encoding='utf8')
+    s = fpatch.read()
     return s
 
 #-------------------------------------------
@@ -300,26 +329,44 @@ def parse(c):
     #Extracts command name,params and args from the given command line.
     log("PARSING :",c)
 
-    command_regex = "([a-zA-Z0-9_]+)"
-    param_name_regex = '-[a-zA-Z0-9_/\-]+'
-    param_val_regex = '[a-zA-Z0-9_/\-\U00010000-\U0010ffff]*'
-    arg_regex = '((?: [a-zA-Z0-9_/\-\U00010000-\U0010ffff]+| "[a-zA-Z0-9_,/\- \U00010000-\U0010ffff]+")*)'
+    #Remove multiple spaces
+    c = c.replace("  "," ")
+    c = c.replace("  "," ")
 
-    p1 = re.findall('^\$'+command_regex+'((?: '+param_name_regex+' '+param_val_regex+')*)'+arg_regex+'$',c)
+    #Regex commands
+    command_regex = "([a-zA-Z0-9_]+)" #simple_expression
+    param_name_regex = '[a-zA-Z0-9_/\-]+' #simple_expression
+    param_val_regex_1 = '[a-zA-Z0-9_/\-\U00010000-\U0010ffff]+' #classical_expressions
+    param_val_regex_2 = '[a-zA-Z0-9_,/\-\[\](): \U00010000-\U0010ffff]+' #"" expressions
+    arg_regex_1 = '[a-zA-Z0-9_/\-\U00010000-\U0010ffff]+' #classical expressions
+    arg_regex_2 = '[a-zA-Z0-9_,/\-\[\](): \U00010000-\U0010ffff]+' #"" expressions
+
+    #Pre parsing of the command (extracts command_name,params and args sub strings)
+    p1 = re.findall('^\$'+command_regex+'((?: -'+param_name_regex+' (?:'+param_val_regex_1+'|"'+param_val_regex_2+'"))*)((?: '+arg_regex_1+'| "'+arg_regex_2+'")*)$',c)
     log("AFTER 1st STEP :",p1)
     if len(p1) != 1:
         return None
 
+    #Extract command
     p1 = p1[0]
 
+    #Extract each part from the command
     command = p1[0]
     params_str = p1[1]
     args_str = p1[2]
-    log("AFTER SECOND STEP :",c,command,params_str,args_str)
-    params = re.findall('-([a-zA-Z0-9_/\-]+) ([a-zA-Z0-9_/\-\U00010000-\U0010ffff]*)',params_str)
+    log("AFTER SECOND STEP :",c,"| |command:"+command+"| |params_str:"+params_str+"| |args_str:"+args_str)
 
-    args = re.findall('(?: ([a-zA-Z0-9_/\-\U00010000-\U0010ffff]+|"[a-zA-Z0-9_,/ \-\U00010000-\U0010ffff]+"))',args_str)
+    #Params parsing
+    params = re.findall(' -('+param_name_regex+') ((?:'+param_val_regex_1+')|(?:"'+param_val_regex_2+'"))',params_str)
+    #Remove ""
+    for i in range(len(params)):
+        params[i] = list(params[i])
+        if len(params[i][1])>0 and params[i][1][0] == '"':
+            params[i][1] = params[i][1][1:-1]
 
+    #Args parsing
+    args = re.findall(' ((?:'+arg_regex_1+')|(?:"'+arg_regex_2+'"))',args_str)
+    #Remove ""
     for i in range(len(args)):
         if args[i][0] == '"':
             args[i] = args[i][1:-1]
@@ -335,7 +382,7 @@ def setup_params(d_init,params,command_name):
             if value is None:
                 d_init[attr] = True
             else:
-                d_init[attr] = type(d_init[attr])(value)
+                d_init[attr] = value
         else:
             error('Unknown parameter {} for command {}'.format(attr,command_name))
     return 1
@@ -391,6 +438,8 @@ async def on_message(m):
         #Doesn't respond to its own messages
         if m.author == client.user:
             return
+
+        #Check if the channel is the right one
         if not(m.channel.id in pw.channel_id):
             return
         #Responds to messages starting with a '$'
@@ -443,12 +492,18 @@ async def on_message(m):
                         if warning_msg:
                             await warning(warning_msg,m.channel)
                         
-
                 #-- RemoveDeadline Command
                 elif command == 'remove':
                     d = {}
                     if setup_params(d,params,'remove') and verify_nb_args(args,1,'remove') and remove_deadline(args[0]):
                         await confirmation('Deadline no {} removed'.format(args[0]),m.channel)
+
+                #-- UpdateDeadline Command
+                elif command == 'update':
+                    d = {'date':None,'object':None}
+                    if setup_params(d,params,'update') and verify_nb_args(args,1,'update'):
+                        update_deadline(args[0],d['date'],d['object'])
+                        await confirmation('Deadline no {} has been updated'.format(args[0]),m.channel)
 
                 #-- Show Command
                 elif command == 'show':
@@ -463,31 +518,11 @@ async def on_message(m):
                         for s in ls:
                             await m.channel.send(s)
                 elif command == 'help':
-                    msg = "```md\n\
-#Welcome to the Deadline Bot. This bot makes it possible to track deadlines for the whole class.\n\
-#Here are few commands you can use. Commands are given between [] where {} represents parameters and () optional parts of commands. A short description of what the command is used for is then given between ().\n\n\
--- <A Courses_Management> : \n\
-1. [$newcourse (-emote {emote}) {coursename}]( to add a new course)  \n\
-> Example : $newcourse -emote 🧠 transfert-learning \n\
-2. [$updatecourse {coursename} {emote}]( to update the emote of an existing course) \n\
-> Example : $updatecourse transfert-learning 📖 \n\
-3. [$deletecourse {coursename}]( to delete an existing course - won't work if deadlines are still linked to this course) \n\
-> Example : $deletecourse transfert-learning \n\
-4. [$listcourses]( to list all existing courses) \n\
-> Example : $listcourses \n\n\
--- <B Deadlines_Management> : \n\
-1. [$add {date} {coursename} {obj}]( to add a new deadline. date's format must either be DD/MM - in this situation the bot will complete the year as the current year or the next one so that the given date hasn't passed - or DD/MM/YYYY if you want to specify the date) \n\
-> Example : $add 27/11 transfert-learning \"New Homework\" \n\
-2. [$remove {id}]( to remove a specific deadline) \n\
-> Example : $remove 85628 \n\
-3. [$show]( to show existing deadlines (capped at 20 deadlines : 5 passed - for people who are late - and 15 next)\n\
-> Example : $show \n\
-4. [$showall]( to show all deadlines)\n\
-> Example : $showall \n\n\
--- <C PatchNote> : \n\
-1. [$patchnote]( to show the last patch notes.) \n\
-> Example : $patchnote \n\
-```"
+                    #Get text from help.txt
+                    fhelp = open('help.txt','r',encoding='utf8')
+                    msg = fhelp.read()
+                    fhelp.close()
+                    #Send text in a message
                     await m.channel.send(msg)
                 elif command=='patchnote':
                     d = {}

@@ -1,0 +1,31 @@
+```md
+#Welcome to the Deadline Bot. This bot makes it possible to track deadlines for the whole class.
+#Here are few commands you can use. Commands are given between [] where {} represents parameters and () optional parts of commands. A short description of what the command is used for is then given between ().
+
+-- <A Courses_Management> : 
+1. [$newcourse (-emote {emote}) {coursename}]( to add a new course)  
+> Example : $newcourse -emote 🧠 transfert-learning 
+2. [$updatecourse {coursename} {emote}]( to update the emote of an existing course) 
+> Example : $updatecourse transfert-learning 📖 
+3. [$deletecourse {coursename}]( to delete an existing course - won't work if deadlines are still linked to this course) 
+> Example : $deletecourse transfert-learning 
+4. [$listcourses]( to list all existing courses) 
+> Example : $listcourses
+
+-- <B Deadlines_Management> : 
+1. [$add {date} {coursename} {obj}]( to add a new deadline. date's format must either be DD/MM - in this situation the bot will complete the year as the current year or the next one so that the given date hasn't passed - or DD/MM/YYYY if you want to specify the date) 
+> Example : $add 27/11 transfert-learning "New Homework" 
+2. [$remove {id}]( to remove a specific deadline) 
+> Example : $remove 85628 
+3. [$update (-date {date}) (-object {object}) {id}]( to update an existing deadline)
+> Example : $update -date 27/11 87423
+> Example : $update -date 27/11 -object "postponed homework 1" 87423
+4. [$show]( to show existing deadlines (capped at 20 deadlines : 5 passed - for people who are late - and 15 next)
+> Example : $show 
+5. [$showall]( to show all deadlines)
+> Example : $showall
+
+-- <C PatchNote> : 
+1. [$patchnote]( to show the last patch notes.) 
+> Example : $patchnote 
+```

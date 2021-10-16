@@ -1,0 +1,8 @@
+```
+----------------------------------------------
+                PATCHNOTE 1.2
+----------------------------------------------
+    - Updated regex parsing
+    - Added update command to modify existing deadlines by changing date and/or object (see $help)
+    - Fixed few things
+```

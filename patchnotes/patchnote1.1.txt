@@ -1,0 +1,13 @@
+```
+----------------------------------------------
+                PATCHNOTE 1.1
+----------------------------------------------
+    - Added emotes and more colors depending on how much time do we have left until the deadline
+        ❌ - PASSED
+        ❕  - UPCOMING (< 3 days)
+        📗 - SOON (<= 14 days)
+        🏴 - FAR (> 14 days)
+    - Added PatchNote feature
+    - Added ',' parsing for deadline specifications 
+    - Updated few error messages 
+```
