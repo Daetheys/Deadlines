@@ -7,7 +7,7 @@ import pickle
 import re
 
 f = open('logs.txt', 'a+')
-def log(f,*txt):
+def log(*txt):
     f.write(str(datetime.datetime.now())+" - ")
     if len(txt)== 1:
         f.write(str(txt[0])+'\n')
@@ -15,24 +15,12 @@ def log(f,*txt):
         f.write(str(txt)+'\n')
     f.flush()
 
-#Ugly but fast to write
-#def print(*args):
-#    return log(f,*args)
-
 client = discord.Client()
-
-first_time = False #Init pickle databases
 
 MAXIDN = 10**5
 
 default_emote = '🟦'
 missing_emote = '🟥' #Shouldn't be used in practice
-
-#courses_dict = {}
-
-#deadlines_dict = {}
-
-channel = None
 
 #-------------------------------------------
 #
@@ -40,11 +28,13 @@ channel = None
 #
 #-------------------------------------------
 def load_courses():
+    #Load the courses list from database
     with open('courses.p','rb') as f:
         l = pickle.load(f)
         return l
 
 def save_courses(courses):
+    #Save the courses list in the database
     with open('courses.p','wb') as f:
         pickle.dump(courses,f)
 
@@ -77,6 +67,7 @@ def remove_course(course):
     return 1
 
 def update_course_emote(course,emote):
+    #Update the emote associated to the given course and saves it in the database
     courses_dict = load_courses()
     try:
         courses_dict[course] = emote
@@ -86,9 +77,11 @@ def update_course_emote(course,emote):
         error("Course {} doesn't exists.".format(course))
 
 def format_course(course,emote):
+    #Transforms a course and an emote into a str to print
     return emote + ' ' + course
 
 def list_courses():
+    #Returns the formatted string of the list of all the courses
     courses_dict = load_courses()
     s = '```\n'
     for c in courses_dict.keys():
@@ -102,14 +95,17 @@ def list_courses():
 #
 #-------------------------------------------
 def load_deadlines():
+    #Returns the deadline database
     with open('deadlines.p','rb') as f:
         return pickle.load(f)
 
 def save_deadlines(dl):
+    #Save the deadline database
     with open('deadlines.p','wb') as f:
         pickle.dump(dl,f)
 
 def get_idn(deadlines_dict): #Generates a new ID for the deadline
+    #Returns a fresh ID for a new deadline
     idn = np.random.randint(0,10**5) # 5 digits ID
     while idn in deadlines_dict.keys(): #Verifies it doesn't already exists
         idn = np.random.randint(0,10**5)
@@ -149,14 +145,14 @@ def add_deadline(d,course_name,obj): #Add new deadline
     #Check if a deadline with this date and course already exists
     warning_msg = None
     for k in deadlines_dict:
-        print(deadlines_dict[k])
-    print(d,course_name)
+        log(deadlines_dict[k])
+    log(d,course_name)
     if check_already_existing_dl(dat,course_name,deadlines_dict):
         s = "A deadline for course {} at date {} already exists. \
 If you have created this deadlines twice because you didn't see it using $show, use $showall \
 to see all deadlines.".format(course_name,d)
         warning_msg = s
-    print(warning_msg)
+    log(warning_msg)
     #Adds the deadline with valid date and course
     idn = get_idn(deadlines_dict) #Get a fresh id
     deadlines_dict[idn] = (dat,course_name,obj)
@@ -165,6 +161,7 @@ to see all deadlines.".format(course_name,d)
     return 1,idn,warning_msg #Deadline added
 
 def check_already_existing_dl(date,course,deadlines_dict):
+    #Check if the deadline already exists in the given database
     l = deadlines_for_course(course,deadlines_dict=deadlines_dict)
     for d,c,o in l:
         if d == date:
@@ -172,6 +169,7 @@ def check_already_existing_dl(date,course,deadlines_dict):
     return False
     
 def remove_deadline(idn):
+    #Removes a deadline from the database and saves
     deadlines_dict = load_deadlines()
     try:
         del deadlines_dict[int(idn)]
@@ -182,6 +180,7 @@ def remove_deadline(idn):
     return 1
 
 def deadlines_for_course(course,deadlines_dict=None):
+    #Extracts all deadlines associated to a course
     if deadlines_dict is None:
         deadlines_dict = load_deadlines()
     l = []
@@ -192,13 +191,15 @@ def deadlines_for_course(course,deadlines_dict=None):
     return l
 
 def sort_deadlines(dl):
+    #Sorts the given list of deadline by date
     return sorted(dl,key=lambda v : v[0])
 
 def select_deadlines(dl):
+    #Selects few deadlines to show. Will keep the latest 3 passed deadlines and the 17 next ones.
     sdl = sort_deadlines(dl)
-    print('sorted deadlines :')
+    log('sorted deadlines :')
     for i in sdl:
-        print(i)
+        log(i)
     now = get_today()
     passed = []
     future = []
@@ -207,17 +208,18 @@ def select_deadlines(dl):
             passed.append(d)
         else:
             future.append(d)
-    print('passed')
+    log('passed')
     for i in passed:
-        print(i)
-    print('future')
+        log(i)
+    log('future')
     for i in future:
-        print(i)
+        log(i)
     #passed.reverse()
     return passed[-3:]+future[:17]
 
 
 def format_deadline(dl,courses_dict):
+    #Returns a formated string representing the given deadlines (this function doesn't sort deadlines)
     course_name_size = 20
     obj_text_size = 30
     (d,course_name,obj,idn) = dl
@@ -232,16 +234,17 @@ def format_deadline(dl,courses_dict):
     return s
 
 def get_today():
+    #Returns the datetime of today
     today = datetime.datetime.today()
     today = today.replace(microsecond=0,second=0,minute=0,hour=0)
-    #today -= datetime.timedelta(days=1)
     return today
 
 def get_deadlines_str(all=False,filtercourse=None):
+    #Returns an array of formatted strings representing packs of 20 deadlines. all=False only returns only one string with few selected deadlines.
     deadlines_dict = load_deadlines()
-    print("show deadlines :")
+    log("show deadlines :")
     for k in deadlines_dict:
-        print(k,deadlines_dict[k])
+        log(k,deadlines_dict[k])
     courses_dict = load_courses()
     if all:
         selected_deadlines = sort_deadlines([(*deadlines_dict[i],i) for i in deadlines_dict.keys()])
@@ -256,9 +259,9 @@ def get_deadlines_str(all=False,filtercourse=None):
         s += '     Date '+' '*3+' '+' '+'       Course       '+' '*3+"            Object            "+" "*3+"   Id  "+"\n"
         today = get_today()
         for dl in selected_deadlines:
-            #Strikethrough if deadline is over
+            #Color deadlines depending on time left
             if dl[0] < today:
-                print(dl[0],today)
+                log(dl[0],today)
                 pre = '-  '+'❌'
             elif dl[0] < today + datetime.timedelta(days=3):
                 pre = '   '+'❕ '
@@ -294,9 +297,16 @@ def get_patchnote_text():
 #-------------------------------------------
 
 def parse(c):
-    print("PARSING :",c)
-    p1 = re.findall('^\$([a-zA-Z0-9_]+)((?: -[a-zA-Z0-9_/\-]+ [a-zA-Z0-9_/\-\U00010000-\U0010ffff]*)*)((?: [a-zA-Z0-9_/\-\U00010000-\U0010ffff]+| "[a-zA-Z0-9_,/\- \U00010000-\U0010ffff]+")*)$',c)
-    print("AFTER 1st STEP :",p1)
+    #Extracts command name,params and args from the given command line.
+    log("PARSING :",c)
+
+    command_regex = "([a-zA-Z0-9_]+)"
+    param_name_regex = '-[a-zA-Z0-9_/\-]+'
+    param_val_regex = '[a-zA-Z0-9_/\-\U00010000-\U0010ffff]*'
+    arg_regex = '((?: [a-zA-Z0-9_/\-\U00010000-\U0010ffff]+| "[a-zA-Z0-9_,/\- \U00010000-\U0010ffff]+")*)'
+
+    p1 = re.findall('^\$'+command_regex+'((?: '+param_name_regex+' '+param_val_regex+')*)'+arg_regex+'$',c)
+    log("AFTER 1st STEP :",p1)
     if len(p1) != 1:
         return None
 
@@ -305,7 +315,7 @@ def parse(c):
     command = p1[0]
     params_str = p1[1]
     args_str = p1[2]
-    print("AFTER SECOND STEP :",c,command,params_str,args_str)
+    log("AFTER SECOND STEP :",c,command,params_str,args_str)
     params = re.findall('-([a-zA-Z0-9_/\-]+) ([a-zA-Z0-9_/\-\U00010000-\U0010ffff]*)',params_str)
 
     args = re.findall('(?: ([a-zA-Z0-9_/\-\U00010000-\U0010ffff]+|"[a-zA-Z0-9_,/ \-\U00010000-\U0010ffff]+"))',args_str)
@@ -317,7 +327,7 @@ def parse(c):
     return command,params,args
 
 def setup_params(d_init,params,command_name):
-    #Put given params in the dictionary and prints an error if unkown params are given
+    #Put given params in the dictionary and logs an error if unkown params are given
     for e in params:
         attr = e[0]
         if attr in d_init.keys():
@@ -331,6 +341,7 @@ def setup_params(d_init,params,command_name):
     return 1
 
 def verify_nb_args(args,nb,command_name):
+    #Verifies the number of args is the right one
     if len(args) != nb:
         error('Command {} is supposed to get {} params'.format(command_name,nb))
     return 1
@@ -341,20 +352,24 @@ def verify_nb_args(args,nb,command_name):
 #
 #-------------------------------------------
 class ErrorException(Exception):
+    #Deadlines bot internal exception (will be catched)
     def __init__(self,m,*args,**kwargs):
         super().__init__(*args,**kwargs)
         self.m = m
 
 def error(msg):
+    #Raise an ErrorException
     raise ErrorException(msg)
 
 async def warning(msg,channel):
-    print('WARNING : ', msg)
+    #Prints a warning in the given channel
+    log('WARNING : ', msg)
     msg = '```fix\n WARNING : '+msg+'```'
     await channel.send(msg)
 
 async def confirmation(msg,channel):
-    print('CONFIRMATION :', msg)
+    #Prints a confirmation message in the given channel
+    log('CONFIRMATION :', msg)
     msg = '```yaml\n'+msg+'```'
     await channel.send(msg)
 
@@ -366,10 +381,12 @@ async def confirmation(msg,channel):
 
 @client.event
 async def on_ready():
-    print('logged in')
+    #Bot just connected
+    log('logged in')
 
 @client.event
 async def on_message(m):
+    #Bot gets a message
     try:
         #Doesn't respond to its own messages
         if m.author == client.user:
@@ -379,9 +396,9 @@ async def on_message(m):
         #Responds to messages starting with a '$'
         if m.content.startswith('$'):
 
-            print('-------------------------------------')
-            print('              NEW INPUT              ')
-            print('-------------------------------------')
+            log('-------------------------------------')
+            log('              NEW INPUT              ')
+            log('-------------------------------------')
 
             v = parse(m.content)
 
@@ -389,7 +406,7 @@ async def on_message(m):
                 if v is None:
                     error('Your command doesn\'t respect the format : type $help to see commands\' format. This error might also be trigered by a special character in the command that makes the regex parsing fail. Try rewriting your command only using letters (no accent), simple emojis, spaces, underscores and dashes.')
                 (command,params,args) = v
-                print('INPUT : ',command,params,args)
+                log('INPUT : ',command,params,args)
 
                 #-- AddCourse Command
                 if command == 'newcourse':
@@ -484,16 +501,13 @@ async def on_message(m):
                 msg = '```diff\n- '+e.m+'```'  #For a red message
                 await m.channel.send(msg)
     except Exception as e:
-        print(traceback.format_exc())
+        log(traceback.format_exc())
         msg = '```diff\n- Internal Error : sorry for the inconvenience. @Daetheys pls fix this.```'
         await m.channel.send(msg)
 
-first_time = False #Just an additional security
-if first_time:
-    save_courses({})
-    save_deadlines({})
-
+#Connecting to the bot
 import pw
 client.run(pw.pw)
 
+#Close logs
 f.close()
