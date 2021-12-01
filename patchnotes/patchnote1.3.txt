@@ -1,0 +1,6 @@
+```
+----------------------------------------------
+                PATCHNOTE 1.2
+----------------------------------------------
+    - Updated regex parsing to handle every character from greek to the depths of unicode as emotes
+```

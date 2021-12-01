@@ -148,7 +148,7 @@ def add_deadline(d,course_name,obj): #Add new deadline
     try:
         courses_dict[course_name]
     except KeyError:
-        error('Second parameter is supposed to be a course. Got {} but this course isn\'t in the database (type $listcourses to see available courses).'.format(course_name))
+        error('Second parameter is supposed to be a course. Got {} but this course isn\'t in the database (tip $listcourses to see available courses).'.format(course_name))
     #Get the deadlines
     deadlines_dict = load_deadlines()
     #Check if a deadline with this date and course already exists
@@ -336,10 +336,10 @@ def parse(c):
     #Regex commands
     command_regex = "([a-zA-Z0-9_]+)" #simple_expression
     param_name_regex = '[a-zA-Z0-9_/\-]+' #simple_expression
-    param_val_regex_1 = '[a-zA-Z0-9_/\-\U00010000-\U0010ffff]+' #classical_expressions
-    param_val_regex_2 = '[a-zA-Z0-9_,/\-\[\](): \U00010000-\U0010ffff]+' #"" expressions
-    arg_regex_1 = '[a-zA-Z0-9_/\-\U00010000-\U0010ffff]+' #classical expressions
-    arg_regex_2 = '[a-zA-Z0-9_,/\-\[\](): \U00010000-\U0010ffff]+' #"" expressions
+    param_val_regex_1 = '[a-zA-Z0-9_/\-\U00000370-\U0010ffff]+' #classical_expressions
+    param_val_regex_2 = '[a-zA-Z0-9_,/\-\[\](): \U00000370-\U0010ffff]+' #"" expressions
+    arg_regex_1 = '[a-zA-Z0-9_/\-\U00000370-\U0010ffff]+' #classical expressions
+    arg_regex_2 = '[a-zA-Z0-9_,/\-\[\](): \U00000370-\U0010ffff]+' #"" expressions
 
     #Pre parsing of the command (extracts command_name,params and args sub strings)
     p1 = re.findall('^\$'+command_regex+'((?: -'+param_name_regex+' (?:'+param_val_regex_1+'|"'+param_val_regex_2+'"))*)((?: '+arg_regex_1+'| "'+arg_regex_2+'")*)$',c)
@@ -453,7 +453,7 @@ async def on_message(m):
 
             try: #Custom Errors handling
                 if v is None:
-                    error('Your command doesn\'t respect the format : type $help to see commands\' format. This error might also be trigered by a special character in the command that makes the regex parsing fail. Try rewriting your command only using letters (no accent), simple emojis, spaces, underscores and dashes.')
+                    error('Your command doesn\'t respect the format : tip $help to see commands\' format. This error might also be trigered by a special character in the command that makes the regex parsing fail. Try rewriting your command only using letters (no accent), simple emojis, spaces, underscores and dashes.')
                 (command,params,args) = v
                 log('INPUT : ',command,params,args)
 
@@ -530,7 +530,7 @@ async def on_message(m):
                         s = get_patchnote_text()
                         await m.channel.send(s)
                 else:
-                    error('Unknown command {}. Type $help to get the list of commands'.format(command))
+                    error('Unknown command {}. Tip $help to get the list of commands'.format(command))
 
             except ErrorException as e:
                 msg = '```diff\n- '+e.m+'```'  #For a red message
